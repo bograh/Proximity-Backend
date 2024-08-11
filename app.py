@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from models import db, User, Friendship, Location
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///proximityapp.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///proximityapp.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres.gmnturgnmsnxhabevrsh:uypKRVt7qAuGeiHv@aws-0-eu-central-1.pooler.supabase.com:6543/postgres'
 app.config['JWT_SECRET_KEY'] = '9LlvwBNxtLW92rGonSRNcn+SCKlkpxnu0Og+IEkCm6o/mGAEr83h5t+BTi9VABtN6PSIpVQhBhhl62X5tM7+8A=='  # Change this to a secure secret key
 jwt = JWTManager(app)
 
@@ -22,16 +23,25 @@ def hello():
 
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    username = data['username']
-    email = data['email']
-    password = data['password']
-    
-    user = User(username=username, email=email, password_hash=generate_password_hash(password))
-    db.session.add(user)
-    db.session.commit()
-    
-    return jsonify({'message': 'User registered successfully'}), 201
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON data"}), 400
+        
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not username or not email or not password:
+            return jsonify({"error": "Missing fields"}), 400
+        
+        user = User(username=username, email=email, password_hash=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'User registered successfully'}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/update_location', methods=['POST'])
 def update_location():
