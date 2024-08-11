@@ -7,7 +7,7 @@ from models import db, User, Friendship, Location
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///proximityapp.db'
-app.config['JWT_SECRET_KEY'] = 'mysuperawesomesecretkey'  # Change this to a secure secret key
+app.config['JWT_SECRET_KEY'] = '9LlvwBNxtLW92rGonSRNcn+SCKlkpxnu0Og+IEkCm6o/mGAEr83h5t+BTi9VABtN6PSIpVQhBhhl62X5tM7+8A=='  # Change this to a secure secret key
 jwt = JWTManager(app)
 
 db.init_app(app)
