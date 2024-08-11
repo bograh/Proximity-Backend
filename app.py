@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import JWTManager, create_access_token
-import datetime
+from datetime import datetime, timedelta
 from models import db, User, Friendship, Location
 
 app = Flask(__name__)
@@ -66,6 +66,59 @@ def login():
         }), 200
     else:
         return jsonify({'message': 'Invalid username or password'}), 401
+
+@app.route('/home', methods=['GET'])
+@jwt_required()
+def home():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    # Get user's current location
+    current_location = Location.query.filter_by(user_id=current_user_id).order_by(Location.timestamp.desc()).first()
+
+    # Get nearby friends (within 1km and active in the last hour)
+    nearby_friends = []
+    if current_location:
+        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        nearby_friends = db.session.query(User, Location).join(Friendship, Friendship.friend_id == User.id)\
+            .join(Location, Location.user_id == User.id)\
+            .filter(Friendship.user_id == current_user_id)\
+            .filter(Location.timestamp > one_hour_ago)\
+            .filter(func.st_distance_sphere(
+                func.point(Location.longitude, Location.latitude),
+                func.point(current_location.longitude, current_location.latitude)
+            ) < 1000).all()  # 1000 meters = 1km
+
+    # Format nearby friends data
+    friends_data = [{
+        'id': friend.User.id,
+        'username': friend.User.username,
+        'latitude': friend.Location.latitude,
+        'longitude': friend.Location.longitude,
+        'last_seen': friend.Location.timestamp.isoformat()
+    } for friend in nearby_friends]
+
+    # Get notifications (this is a placeholder - implement based on your notification system)
+    notifications = []  # You would populate this based on your notification logic
+
+    return jsonify({
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'current_location': {
+                'latitude': current_location.latitude if current_location else None,
+                'longitude': current_location.longitude if current_location else None,
+                'timestamp': current_location.timestamp.isoformat() if current_location else None
+            }
+        },
+        'nearby_friends': friends_data,
+        'notifications': notifications
+    }), 200
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
